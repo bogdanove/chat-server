@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net"
 
@@ -25,6 +26,7 @@ func init() {
 
 type server struct {
 	chat_v1.UnimplementedChatV1Server
+	pool *pgxpool.Pool
 }
 
 func main() {
@@ -71,18 +73,71 @@ func main() {
 }
 
 // Create - создания нового чата
-func (s *server) Create(_ context.Context, req *chat_v1.CreateRequest) (*chat_v1.CreateResponse, error) {
+func (s *server) Create(ctx context.Context, req *chat_v1.CreateRequest) (*chat_v1.CreateResponse, error) {
 	log.Printf("create new chat with title: %v", req.ChatTitle)
 
-	_ = sq.InsertBuilder{}
+	queryChat, args, err := sq.Insert("chat").
+		PlaceholderFormat(sq.Dollar).
+		Columns("chat_title").
+		Values(req.GetChatTitle()).
+		Suffix("RETURNING id").ToSql()
+	if err != nil {
+		log.Fatalf("failed to build query: %v", err)
+	}
+
+	var chatId int64
+	err = s.pool.QueryRow(ctx, queryChat, args...).Scan(&chatId)
+	if err != nil {
+		log.Fatalf("failed to insert chat: %v", err)
+	}
+
+	builderInsertChatUser := sq.Insert("chat_users").
+		PlaceholderFormat(sq.Dollar).
+		Columns("chat_id", "user_id")
+	for id := range req.Ids {
+		builderInsertChatUser = builderInsertChatUser.Values(chatId, id)
+	}
+
+	queryChatUser, argsUsr, err := builderInsertChatUser.ToSql()
+	if err != nil {
+		log.Fatalf("failed to build query: %v", err)
+	}
+
+	_, err = s.pool.Exec(ctx, queryChatUser, argsUsr...)
+	if err != nil {
+		log.Fatalf("failed to insert note: %v", err)
+	}
 
 	return &chat_v1.CreateResponse{
-		Id: int64(len(req.Ids)),
+		Id: chatId,
 	}, nil
 }
 
 // Delete - удаление чата из системы по его идентификатору
-func (s *server) Delete(_ context.Context, req *chat_v1.DeleteRequest) (*emptypb.Empty, error) {
+func (s *server) Delete(ctx context.Context, req *chat_v1.DeleteRequest) (*emptypb.Empty, error) {
+
+	queryDelChat, args, err := sq.Delete("chat").
+		Where(fmt.Sprintf("id=%d", req.Id)).Suffix("CASCADE").ToSql()
+	if err != nil {
+		log.Fatalf("failed to build query: %v", err)
+	}
+
+	_, err = s.pool.Exec(ctx, queryDelChat, args...)
+	if err != nil {
+		log.Fatalf("failed to delete chat: %v", err)
+	}
+
+	//queryDelChatUser, argsUsr, err := sq.Delete("chat_user").
+	//	Where(fmt.Sprintf("chat_id=%d", req.Id)).ToSql()
+	//if err != nil {
+	//	log.Fatalf("failed to build query: %v", err)
+	//}
+	//
+	//_, err = s.pool.Exec(ctx, queryDelChatUser, argsUsr...)
+	//if err != nil {
+	//	log.Fatalf("failed to delete chat_user: %v", err)
+	//}
+
 	log.Printf("delete chat for id: %d", req.Id)
 
 	return &emptypb.Empty{}, nil
