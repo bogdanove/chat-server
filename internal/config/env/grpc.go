@@ -17,6 +17,7 @@ type grpcConfig struct {
 	port string
 }
 
+// NewGRPCConfig - create new GRPC configuration
 func NewGRPCConfig() (*grpcConfig, error) {
 	host := os.Getenv(grpcHostEnvName)
 	if len(host) == 0 {
