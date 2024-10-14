@@ -35,6 +35,7 @@ func NewGRPCConfig() (*grpcConfig, error) {
 	}, nil
 }
 
+// Address - to create GRPC server
 func (cfg *grpcConfig) Address() string {
 	return net.JoinHostPort(cfg.host, cfg.port)
 }

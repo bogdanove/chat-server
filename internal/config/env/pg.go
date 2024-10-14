@@ -25,6 +25,7 @@ func NewPGConfig() (*pgConfig, error) {
 	}, nil
 }
 
+// DSN - data source name to db connect
 func (cfg *pgConfig) DSN() string {
 	return cfg.dsn
 }
