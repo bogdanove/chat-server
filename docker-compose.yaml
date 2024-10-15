@@ -34,7 +34,7 @@ services:
   migrator-prod:
     build:
       context: .
-      dockerfile: migration_prod.Dockerfile
+      dockerfile: migration.Dockerfile
     restart: on-failure
     environment:
       DB_HOST: pg-prod
