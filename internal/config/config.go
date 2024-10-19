@@ -1,8 +1,6 @@
 package config
 
-import (
-	"github.com/joho/godotenv"
-)
+import "github.com/joho/godotenv"
 
 // Load - load environments
 func Load(path string) error {

@@ -2,7 +2,7 @@
 create table chat
 (
     id         serial primary key,
-    chat_title text      not null,
+    chat_title varchar      not null,
     created_at timestamp not null default now()
 );
 
