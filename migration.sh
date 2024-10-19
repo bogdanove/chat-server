@@ -1,6 +1,8 @@
 #!/bin/bash
 source .env
 
+MIGRATION_DIR=$(echo "$MIGRATION_DIR" | tr -d '[:space:]')
+
 export DB_HOST=${DB_HOST:-pg}  # Использует "pg" локально, но принимает значение из окружения, если оно задано
 export MIGRATION_DSN="host=$DB_HOST port=5432 dbname=$PG_DATABASE_NAME user=$PG_USER password=$PG_PASSWORD sslmode=disable"
 
