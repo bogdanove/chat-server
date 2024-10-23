@@ -6,16 +6,16 @@ import (
 
 	"github.com/bogdanove/chat-server/internal/converter"
 	"github.com/bogdanove/chat-server/pkg/chat_v1"
+	"github.com/pkg/errors"
 )
 
 // CreateChat - создания нового чата
 func (s *Server) CreateChat(ctx context.Context, req *chat_v1.CreateRequest) (*chat_v1.CreateResponse, error) {
-	request, err := converter.FromProtoToService(req)
-	if err != nil {
-		return nil, err
+	if req == nil {
+		return nil, errors.New("request is nil")
 	}
 
-	id, err := s.chatService.CreateChat(ctx, request)
+	id, err := s.chatService.CreateChat(ctx, converter.FromProtoToService(req))
 	if err != nil {
 		return nil, err
 	}
