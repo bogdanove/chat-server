@@ -15,7 +15,7 @@ func (c *chatService) CreateChat(ctx context.Context, req *model.Chat) (int64, e
 
 	err := c.txManager.ReadCommitted(ctx, func(ctx context.Context) error {
 		var errTx error
-		id, errTx = c.chatRepository.CreateChat(ctx, converter.FromServiceToChatRepo(req))
+		id, errTx = c.chatRepository.CreateChat(ctx, req)
 		if errTx != nil {
 			return errTx
 		}

@@ -10,7 +10,12 @@ import (
 
 // CreateChat - создания нового чата
 func (s *Server) CreateChat(ctx context.Context, req *chat_v1.CreateRequest) (*chat_v1.CreateResponse, error) {
-	id, err := s.chatService.CreateChat(ctx, converter.FromProtoToService(req))
+	request, err := converter.FromProtoToService(req)
+	if err != nil {
+		return nil, err
+	}
+
+	id, err := s.chatService.CreateChat(ctx, request)
 	if err != nil {
 		return nil, err
 	}

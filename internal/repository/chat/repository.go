@@ -5,7 +5,9 @@ import (
 	"log"
 
 	sq "github.com/Masterminds/squirrel"
+
 	"github.com/bogdanove/chat-server/internal/client/db"
+	service "github.com/bogdanove/chat-server/internal/model"
 	"github.com/bogdanove/chat-server/internal/repository"
 	"github.com/bogdanove/chat-server/internal/repository/chat/model"
 )
@@ -21,7 +23,6 @@ const (
 	chatUsersChatIDColumn = "chat_id"
 	chatUsersUserIDColumn = "user_id"
 
-	chatLogChatIDColumn = "chat_id"
 	chatLogActionColumn = "action"
 )
 
@@ -35,9 +36,64 @@ func NewChatRepository(db db.Client) repository.ChatRepository {
 }
 
 // CreateChat - создания нового чата
-func (r *chatRepo) CreateChat(ctx context.Context, req *model.Chat) (int64, error) {
+func (r *chatRepo) CreateChat(ctx context.Context, req *service.Chat) (int64, error) {
 	log.Printf("create new chat with title: %v", req.ChatTitle)
 
+	chatID, err := r.createChatInternal(ctx, req)
+	if err != nil {
+		return 0, err
+	}
+
+	err = r.createChatUsersInternal(ctx, chatID, req.IDs)
+	if err != nil {
+		return 0, err
+	}
+
+	return chatID, nil
+}
+
+// DeleteChat - удаление чата из системы по его идентификатору
+func (r *chatRepo) DeleteChat(ctx context.Context, req int64) error {
+	err := r.deleteChatUsersInternal(ctx, req)
+	if err != nil {
+		return err
+	}
+
+	err = r.deleteChatInternal(ctx, req)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// SaveLog - сохранение записи о действиях пользователя
+func (r *chatRepo) SaveLog(ctx context.Context, req *model.ChatLog) error {
+	log.Printf("create new chat_log with chat_id: %d", req.ChatID)
+
+	queryChatLog, args, err := sq.Insert(chatLogTableName).
+		PlaceholderFormat(sq.Dollar).
+		Columns(chatUsersChatIDColumn, chatLogActionColumn).
+		Values(req.ChatID, req.Action).ToSql()
+	if err != nil {
+		log.Printf("failed to build query: %v", err)
+		return err
+	}
+
+	ql := db.Query{
+		Name:     "chat_repository.SaveLog",
+		QueryRaw: queryChatLog,
+	}
+
+	_, err = r.db.DB().ExecContext(ctx, ql, args...)
+	if err != nil {
+		log.Printf("failed to insert chat_log: %v", err)
+		return err
+	}
+	return nil
+}
+
+func (r *chatRepo) createChatInternal(ctx context.Context, req *service.Chat) (int64, error) {
 	queryChat, args, err := sq.Insert(chatTableName).
 		PlaceholderFormat(sq.Dollar).
 		Columns(chatTitleColumn).
@@ -60,17 +116,21 @@ func (r *chatRepo) CreateChat(ctx context.Context, req *model.Chat) (int64, erro
 		return 0, err
 	}
 
+	return chatID, nil
+}
+
+func (r *chatRepo) createChatUsersInternal(ctx context.Context, chatID int64, IDs []int64) error {
 	builderInsertChatUser := sq.Insert(chatUsersTableName).
 		PlaceholderFormat(sq.Dollar).
 		Columns(chatUsersChatIDColumn, chatUsersUserIDColumn)
-	for _, id := range req.IDs {
+	for _, id := range IDs {
 		builderInsertChatUser = builderInsertChatUser.Values(chatID, id)
 	}
 
 	queryChatUser, argsUsr, err := builderInsertChatUser.ToSql()
 	if err != nil {
 		log.Printf("failed to build query: %v", err)
-		return 0, err
+		return err
 	}
 
 	qu := db.Query{
@@ -81,34 +141,13 @@ func (r *chatRepo) CreateChat(ctx context.Context, req *model.Chat) (int64, erro
 	_, err = r.db.DB().ExecContext(ctx, qu, argsUsr...)
 	if err != nil {
 		log.Printf("failed to insert chat_users: %v", err)
-		return 0, err
+		return err
 	}
 
-	return chatID, nil
+	return nil
 }
 
-// DeleteChat - удаление чата из системы по его идентификатору
-func (r *chatRepo) DeleteChat(ctx context.Context, req int64) error {
-
-	queryDelChatUser, argsUsr, err := sq.Delete(chatUsersTableName).
-		PlaceholderFormat(sq.Dollar).
-		Where(sq.Eq{chatUsersChatIDColumn: req}).ToSql()
-	if err != nil {
-		log.Printf("failed to build query: %v", err)
-		return err
-	}
-
-	qu := db.Query{
-		Name:     "chat_repository.Delete_users",
-		QueryRaw: queryDelChatUser,
-	}
-
-	_, err = r.db.DB().ExecContext(ctx, qu, argsUsr...)
-	if err != nil {
-		log.Printf("failed to delete chat_user: %v", err)
-		return err
-	}
-
+func (r *chatRepo) deleteChatInternal(ctx context.Context, req int64) error {
 	queryDelChat, args, err := sq.Delete(chatTableName).
 		PlaceholderFormat(sq.Dollar).
 		Where(sq.Eq{chatIDColumn: req}).ToSql()
@@ -131,28 +170,25 @@ func (r *chatRepo) DeleteChat(ctx context.Context, req int64) error {
 	return nil
 }
 
-// SaveLog - сохранение записи о действиях пользователя
-func (r *chatRepo) SaveLog(ctx context.Context, req *model.ChatLog) error {
-	log.Printf("create new chat_log with chat_id: %d", req.ChatID)
-
-	queryChatLog, args, err := sq.Insert(chatLogTableName).
+func (r *chatRepo) deleteChatUsersInternal(ctx context.Context, req int64) error {
+	queryDelChatUser, argsUsr, err := sq.Delete(chatUsersTableName).
 		PlaceholderFormat(sq.Dollar).
-		Columns(chatLogChatIDColumn, chatLogActionColumn).
-		Values(req.ChatID, req.Action).ToSql()
+		Where(sq.Eq{chatUsersChatIDColumn: req}).ToSql()
 	if err != nil {
 		log.Printf("failed to build query: %v", err)
 		return err
 	}
 
-	ql := db.Query{
-		Name:     "chat_repository.SaveLog",
-		QueryRaw: queryChatLog,
+	qu := db.Query{
+		Name:     "chat_repository.Delete_users",
+		QueryRaw: queryDelChatUser,
 	}
 
-	_, err = r.db.DB().ExecContext(ctx, ql, args...)
+	_, err = r.db.DB().ExecContext(ctx, qu, argsUsr...)
 	if err != nil {
-		log.Printf("failed to insert chat_log: %v", err)
+		log.Printf("failed to delete chat_user: %v", err)
 		return err
 	}
+
 	return nil
 }
