@@ -4,12 +4,13 @@ import (
 	"context"
 	"log"
 
+	"github.com/bogdanove/platform_common/pkg/closer"
+	"github.com/bogdanove/platform_common/pkg/db"
+	"github.com/bogdanove/platform_common/pkg/db/pg"
+	"github.com/bogdanove/platform_common/pkg/db/transaction"
+
 	"github.com/bogdanove/chat-server/internal/api/chat"
 	server "github.com/bogdanove/chat-server/internal/api/chat"
-	"github.com/bogdanove/chat-server/internal/client/db"
-	"github.com/bogdanove/chat-server/internal/client/db/pg"
-	"github.com/bogdanove/chat-server/internal/client/db/transaction"
-	"github.com/bogdanove/chat-server/internal/closer"
 	"github.com/bogdanove/chat-server/internal/config"
 	"github.com/bogdanove/chat-server/internal/config/env"
 	"github.com/bogdanove/chat-server/internal/repository"

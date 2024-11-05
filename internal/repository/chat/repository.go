@@ -5,8 +5,8 @@ import (
 	"log"
 
 	sq "github.com/Masterminds/squirrel"
+	"github.com/bogdanove/platform_common/pkg/db"
 
-	"github.com/bogdanove/chat-server/internal/client/db"
 	service "github.com/bogdanove/chat-server/internal/model"
 	"github.com/bogdanove/chat-server/internal/repository"
 	"github.com/bogdanove/chat-server/internal/repository/chat/model"

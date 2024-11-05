@@ -1,7 +1,8 @@
 package chat
 
 import (
-	"github.com/bogdanove/chat-server/internal/client/db"
+	"github.com/bogdanove/platform_common/pkg/db"
+
 	"github.com/bogdanove/chat-server/internal/repository"
 	"github.com/bogdanove/chat-server/internal/service"
 )
